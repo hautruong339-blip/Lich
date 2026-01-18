@@ -3,115 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LabGuard - Giao Diện Mobile Chuẩn</title>
+    <title>LabGuard - Bản Sửa Lỗi Mobile</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
     <style>
         :root { --red: #d93025; --green: #1e8e3e; --blue: #1a73e8; --conflict-bg: #fce8e6; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        * { box-sizing: border-box; }
-        
-        body { 
-            font-family: -apple-system, system-ui, sans-serif; 
+        html, body { 
+            height: 100%; 
             margin: 0; 
-            background: #fff; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh;
-            /* Ngăn chặn rung màn hình trên iPhone */
-            position: fixed;
-            width: 100%;
+            padding: 0; 
+            overflow: hidden; /* Chống cuộn toàn trang gây khuất menu */
+            background: #fff;
         }
+
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; }
         
         header { 
-            padding: 8px 12px; 
+            padding: 10px 15px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             border-bottom: 1px solid #ddd; 
-            background: #fff;
-            z-index: 10;
-            flex-shrink: 0; /* Không cho header bị co lại */
+            background: #fff; 
+            height: 60px; /* Cố định chiều cao header */
+            flex-shrink: 0;
         }
-        
-        .info-area { display: flex; flex-direction: column; }
-        #monthLabel { font-weight: bold; font-size: 1rem; color: #3c4043; }
-        #digitalClock { font-family: monospace; font-size: 0.85rem; color: #1a73e8; font-weight: bold; }
 
-        /* Vùng chứa lịch có thể cuộn */
-        .calendar-container {
-            flex: 1;
-            overflow-y: auto; /* Cho phép cuộn dọc nếu lịch quá dài */
-            -webkit-overflow-scrolling: touch;
-            background: #dadce0;
+        #monthLabel { font-weight: bold; font-size: 1.1rem; }
+        #digitalClock { font-family: monospace; font-size: 0.9rem; color: var(--blue); font-weight: bold; }
+
+        .calendar-container { 
+            flex: 1; 
+            overflow-y: auto; 
+            background: #dadce0; 
         }
 
         .calendar-grid { 
             display: grid; 
             grid-template-columns: repeat(7, 1fr); 
-            gap: 1px;
+            gap: 1px; 
             background: #dadce0;
         }
 
         .weekday { 
             background: #f8f9fa; 
             text-align: center; 
-            font-size: 0.65rem; 
-            padding: 6px 0; 
+            font-size: 0.7rem; 
+            padding: 8px 0; 
             font-weight: bold; 
-            color: #70757a;
-            position: sticky;
-            top: 0;
-            z-index: 5;
+            color: #70757a; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
         }
-
+        
         .day { 
             background: #fff; 
             padding: 2px; 
-            min-height: 85px; /* Giảm chiều cao tối thiểu để không bị khuất */
+            min-height: 80px; /* Thu nhỏ để không bị chiếm chỗ */
             display: flex; 
             flex-direction: column; 
-            position: relative; 
         }
 
-        .day-num { font-size: 0.75rem; color: #70757a; margin-bottom: 1px; }
-        .today .day-num { 
-            background: #1a73e8; color: #fff; 
-            width: 18px; height: 18px; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; 
-        }
+        .day-num { font-size: 0.8rem; color: #70757a; margin-bottom: 2px; }
+        .today .day-num { background: var(--blue); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         
         .conflict { background-color: var(--conflict-bg) !important; box-shadow: inset 0 0 0 1px var(--red); }
 
         .note-tag { 
-            font-size: 0.6rem; /* Thu nhỏ chữ trong thẻ */
+            font-size: 0.6rem; 
             color: #fff; 
-            padding: 1px 2px; 
-            border-radius: 2px; 
+            padding: 2px; 
+            border-radius: 3px; 
             margin-bottom: 1px; 
             text-align: center; 
-            font-weight: 500; 
-            white-space: nowrap;
+            font-weight: 500;
             overflow: hidden;
-            text-overflow: ellipsis; /* Nếu chữ dài quá sẽ hiện ... */
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-
         .tag-red { background: var(--red); }
         .tag-green { background: var(--green); }
         .tag-blue { background: var(--blue); }
         .tag-white { background: #fff; color: #333; border: 1px solid #ccc; }
 
-        /* Menu chọn nhanh tối ưu Mobile */
-        .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+        /* MODAL NỔI LÊN TRÊN CÙNG */
+        .overlay { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(0,0,0,0.6); 
+            z-index: 999; 
+        }
         .quick-menu { 
-            display: none; position: fixed; bottom: 0; left: 0; right: 0; 
-            background: #fff; padding: 15px; border-radius: 16px 16px 0 0; 
-            z-index: 100; max-height: 80vh; overflow-y: auto; 
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.2); 
+            display: none; 
+            position: fixed; 
+            bottom: 0; left: 0; right: 0; 
+            background: #fff; 
+            padding: 20px; 
+            border-radius: 20px 20px 0 0; 
+            z-index: 1000; 
+            max-height: 85vh; 
+            overflow-y: auto; 
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.3); 
         }
         .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .btn-quick { border: none; padding: 12px; border-radius: 10px; color: #fff; font-weight: bold; font-size: 0.85rem; }
+        .btn-quick { border: none; padding: 14px; border-radius: 12px; color: #fff; font-weight: bold; font-size: 0.9rem; outline: none; }
         .btn-white { background: #fff; color: #333; border: 1px solid #aaa; grid-column: span 2; }
-        .btn-delete-item { background: #ff9800; color: white; grid-column: span 2; }
-        .btn-xoa-all { background: #e8eaed; color: #3c4043; grid-column: span 2; margin-top: 5px; }
+        .btn-delete-item { background: #ff9800; color: white; grid-column: span 2; display: none; margin-top: 5px; }
+        .btn-xoa-all { background: #e8eaed; color: #3c4043; grid-column: span 2; margin-top: 10px; padding: 10px; }
     </style>
 </head>
 <body>
@@ -121,9 +124,9 @@
         <div id="monthLabel">Tháng 1, 2026</div>
         <div id="digitalClock">00:00:00</div>
     </div>
-    <div style="display:flex; gap:2px;">
-        <button id="prevMonth" style="border:none; background:none; font-size:1.5rem; color:#1a73e8; padding:5px 10px;">‹</button>
-        <button id="nextMonth" style="border:none; background:none; font-size:1.5rem; color:#1a73e8; padding:5px 10px;">›</button>
+    <div style="display:flex; gap:10px;">
+        <button onclick="changeMonth(-1)" style="border:none; background:none; font-size:2rem; color:var(--blue);">‹</button>
+        <button onclick="changeMonth(1)" style="border:none; background:none; font-size:2rem; color:var(--blue);">›</button>
     </div>
 </header>
 
@@ -131,135 +134,135 @@
     <div class="calendar-grid" id="grid"></div>
 </div>
 
-<div class="overlay" id="overlay"></div>
+<div class="overlay" id="overlay" onclick="closeMenu()"></div>
 <div class="quick-menu" id="quickMenu">
-    <div id="targetDate" style="margin-bottom:12px; font-weight:bold; color:#1a73e8;"></div>
+    <div id="targetDate" style="margin-bottom:15px; font-weight:bold; color:var(--blue); font-size: 1rem;"></div>
     <div class="menu-grid">
-        <button class="btn-save btn-quick" style="background:var(--red)" data-text="Trực CM" data-color="red">Trực CM</button>
-        <button class="btn-save btn-quick" style="background:var(--red)" data-text="Trực HC" data-color="red">Trực HC</button>
-        <button class="btn-save btn-quick" style="background:var(--green)" data-text="HC 6h" data-color="green">HC 6h</button>
-        <button class="btn-save btn-quick" style="background:var(--green)" data-text="LM 6h" data-color="green">LM 6h</button>
-        <button class="btn-save btn-quick" style="background:var(--blue)" data-text="CM 5h" data-color="blue">CM 5h</button>
-        <button class="btn-save btn-quick" style="background:var(--blue)" data-text="TN 5h" data-color="blue">TN 5h</button>
-        <button class="btn-save btn-quick" style="background:var(--blue)" data-text="LM1 5h" data-color="blue">LM1 5h</button>
-        <button class="btn-save btn-quick" style="background:var(--blue)" data-text="LM2 5h" data-color="blue">LM2 5h</button>
-        <button class="btn-white btn-quick" id="btnCustomWhite">+ Ghi chú trắng</button>
-        <button id="btnDeleteItem" class="btn-quick btn-delete-item">XÓA RIÊNG THẺ NÀY</button>
-        <button class="btn-xoa-all btn-quick" id="btnXoaAll">XÓA HẾT CẢ NGÀY</button>
+        <button class="btn-quick" style="background:var(--red)" onclick="saveNote('Trực CM', 'red')">Trực CM</button>
+        <button class="btn-quick" style="background:var(--red)" onclick="saveNote('Trực HC', 'red')">Trực HC</button>
+        <button class="btn-quick" style="background:var(--green)" onclick="saveNote('HC 6h', 'green')">HC 6h</button>
+        <button class="btn-quick" style="background:var(--green)" onclick="saveNote('LM 6h', 'green')">LM 6h</button>
+        <button class="btn-quick" style="background:var(--blue)" onclick="saveNote('CM 5h', 'blue')">CM 5h</button>
+        <button class="btn-quick" style="background:var(--blue)" onclick="saveNote('TN 5h', 'blue')">TN 5h</button>
+        <button class="btn-quick" style="background:var(--blue)" onclick="saveNote('LM1 5h', 'blue')">LM1 5h</button>
+        <button class="btn-quick" style="background:var(--blue)" onclick="saveNote('LM2 5h', 'blue')">LM2 5h</button>
+        <button class="btn-quick btn-white" onclick="customWhiteNote()">+ Ghi chú trắng</button>
+        <button id="btnDeleteItem" class="btn-quick btn-delete-item" onclick="deleteCurrentItem()">XÓA RIÊNG THẺ NÀY</button>
+        <button class="btn-quick btn-xoa-all" onclick="clearDay()">XÓA HẾT CẢ NGÀY</button>
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+<script>
+    var firebaseConfig = { databaseURL: "https://aistudio-91002-default-rtdb.firebaseio.com/" };
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.database();
 
-    const firebaseConfig = { databaseURL: "https://aistudio-91002-default-rtdb.firebaseio.com/" };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    let viewDate = new Date();
-    let selectedKey = "";
-    let editingColor = null;
+    var viewDate = new Date();
+    var selectedKey = "";
+    var editingColor = null;
 
     function updateClock() {
-        const now = new Date();
+        var now = new Date();
         document.getElementById('digitalClock').innerText = now.toLocaleTimeString('vi-VN');
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateClock, 1000); updateClock();
 
     function render() {
-        const grid = document.getElementById('grid');
+        var grid = document.getElementById('grid');
         grid.innerHTML = '';
-        ["CN", "T2", "T3", "T4", "T5", "T6", "T7"].forEach(l => {
-            const div = document.createElement('div'); div.className = 'weekday'; div.innerText = l; grid.appendChild(div);
+        var days = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+        days.forEach(function(d) {
+            var div = document.createElement('div'); div.className = 'weekday'; div.innerText = d; grid.appendChild(div);
         });
 
-        const y = viewDate.getFullYear(), m = viewDate.getMonth();
-        document.getElementById('monthLabel').innerText = `Tháng ${m + 1}, ${y}`;
-        const firstDay = new Date(y, m, 1).getDay();
-        const totalDays = new Date(y, m + 1, 0).getDate();
+        var y = viewDate.getFullYear(), m = viewDate.getMonth();
+        document.getElementById('monthLabel').innerText = "Tháng " + (m + 1) + ", " + y;
 
-        for(let i=0; i<firstDay; i++) grid.appendChild(Object.assign(document.createElement('div'), {className:'day'}));
+        var firstDay = new Date(y, m, 1).getDay();
+        var totalDays = new Date(y, m + 1, 0).getDate();
 
-        for(let d=1; d<=totalDays; d++) {
-            const key = `${y}-${m+1}-${d}`;
-            const div = document.createElement('div'); div.className = 'day';
-            if (new Date().toDateString() === new Date(y,m,d).toDateString()) div.classList.add('today');
-            div.innerHTML = `<div class="day-num">${d}</div>`;
-            
-            const data = JSON.parse(localStorage.getItem(key) || "[]");
-            if (data.some(i => i.color === 'green') && data.some(i => i.color === 'blue')) div.classList.add('conflict');
+        for(var i=0; i<firstDay; i++) {
+            var empty = document.createElement('div'); empty.className = 'day'; grid.appendChild(empty);
+        }
 
-            data.forEach(item => {
-                const tag = document.createElement('div');
-                tag.className = `note-tag tag-${item.color}`;
-                tag.innerText = item.text;
-                tag.onclick = (e) => { e.stopPropagation(); openEdit(key, item.color, d, m+1, y); };
-                div.appendChild(tag);
-            });
-            div.onclick = () => openEdit(key, null, d, m+1, y);
-            grid.appendChild(div);
+        for(var d=1; d<=totalDays; d++) {
+            (function(dayNum) {
+                var key = y + "-" + (m + 1) + "-" + dayNum;
+                var div = document.createElement('div');
+                div.className = 'day';
+                if (new Date().toDateString() === new Date(y, m, dayNum).toDateString()) div.classList.add('today');
+                div.innerHTML = '<div class="day-num">' + dayNum + '</div>';
+                
+                var data = JSON.parse(localStorage.getItem(key) || "[]");
+                var hasGreen = data.some(function(i) { return i.color === 'green' });
+                var hasBlue = data.some(function(i) { return i.color === 'blue' });
+                if (hasGreen && hasBlue) div.classList.add('conflict');
+
+                data.forEach(function(item) {
+                    var tag = document.createElement('div');
+                    tag.className = 'note-tag tag-' + item.color;
+                    tag.innerText = item.text;
+                    tag.onclick = function(e) { e.stopPropagation(); openEdit(key, item.color, dayNum, m+1, y); };
+                    div.appendChild(tag);
+                });
+
+                div.onclick = function() { openEdit(key, null, dayNum, m+1, y); };
+                grid.appendChild(div);
+            })(d);
         }
     }
 
-    function openEdit(key, color, d, m, y) {
+    window.openEdit = function(key, color, d, m, y) {
         selectedKey = key; editingColor = color;
-        document.getElementById('targetDate').innerText = `Ngày ${d}/${m}/${y}`;
+        document.getElementById('targetDate').innerText = "Ngày " + d + "/" + m + "/" + y;
         document.getElementById('btnDeleteItem').style.display = color ? 'block' : 'none';
         document.getElementById('quickMenu').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
     }
 
-    function closeMenu() {
+    window.closeMenu = function() {
         document.getElementById('quickMenu').style.display = 'none';
         document.getElementById('overlay').style.display = 'none';
     }
 
-    document.getElementById('overlay').onclick = closeMenu;
-    document.getElementById('prevMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth() - 1); render(); };
-    document.getElementById('nextMonth').onclick = () => { viewDate.setMonth(viewDate.getMonth() + 1); render(); };
-    
-    document.querySelectorAll('.btn-save').forEach(btn => {
-        btn.onclick = () => {
-            const text = btn.getAttribute('data-text'), color = btn.getAttribute('data-color');
-            let data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
-            const idx = data.findIndex(i => i.color === color);
-            if (idx > -1) data[idx].text = text; else data.push({ text, color });
-            localStorage.setItem(selectedKey, JSON.stringify(data));
-            set(ref(db, 'lich_truc/' + selectedKey), data);
-            closeMenu(); render();
-        };
-    });
+    window.saveNote = function(text, color) {
+        var data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
+        var idx = data.findIndex(function(i) { return i.color === color });
+        if (idx > -1) data[idx].text = text; else data.push({ text: text, color: color });
+        localStorage.setItem(selectedKey, JSON.stringify(data));
+        db.ref('lich_truc/' + selectedKey).set(data);
+        closeMenu(); render();
+    }
 
-    document.getElementById('btnCustomWhite').onclick = () => {
-        const txt = prompt("Ghi chú trắng:");
-        if (txt) {
-            let data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
-            const idx = data.findIndex(i => i.color === 'white');
-            if (idx > -1) data[idx].text = txt; else data.push({ text: txt, color: 'white' });
-            localStorage.setItem(selectedKey, JSON.stringify(data));
-            set(ref(db, 'lich_truc/' + selectedKey), data);
-            closeMenu(); render();
+    window.customWhiteNote = function() {
+        var txt = prompt("Ghi chú trắng:");
+        if (txt) window.saveNote(txt, 'white');
+    }
+
+    window.deleteCurrentItem = function() {
+        var data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
+        data = data.filter(function(i) { return i.color !== editingColor });
+        if (data.length === 0) {
+            localStorage.removeItem(selectedKey); db.ref('lich_truc/' + selectedKey).remove();
+        } else {
+            localStorage.setItem(selectedKey, JSON.stringify(data)); db.ref('lich_truc/' + selectedKey).set(data);
         }
-    };
-
-    document.getElementById('btnDeleteItem').onclick = () => {
-        let data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
-        data = data.filter(i => i.color !== editingColor);
-        if (data.length === 0) { localStorage.removeItem(selectedKey); set(ref(db, 'lich_truc/' + selectedKey), null); }
-        else { localStorage.setItem(selectedKey, JSON.stringify(data)); set(ref(db, 'lich_truc/' + selectedKey), data); }
         closeMenu(); render();
-    };
+    }
 
-    document.getElementById('btnXoaAll').onclick = () => {
-        localStorage.removeItem(selectedKey); set(ref(db, 'lich_truc/' + selectedKey), null);
+    window.clearDay = function() {
+        localStorage.removeItem(selectedKey); db.ref('lich_truc/' + selectedKey).remove();
         closeMenu(); render();
-    };
+    }
 
-    onValue(ref(db, 'lich_truc/'), (snapshot) => {
-        const d = snapshot.val(); localStorage.clear();
-        if (d) Object.keys(d).forEach(k => localStorage.setItem(k, JSON.stringify(d[k])));
+    window.changeMonth = function(dir) {
+        viewDate.setMonth(viewDate.getMonth() + dir); render();
+    }
+
+    db.ref('lich_truc/').on('value', function(snapshot) {
+        var d = snapshot.val();
+        localStorage.clear();
+        if (d) Object.keys(d).forEach(function(k) { localStorage.setItem(k, JSON.stringify(d[k])); });
         render();
     });
 </script>
