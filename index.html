@@ -3,45 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LabGuard - Lịch & Giờ Thực</title>
+    <title>LabGuard - Giao Diện Mobile Chuẩn</title>
     <style>
         :root { --red: #d93025; --green: #1e8e3e; --blue: #1a73e8; --conflict-bg: #fce8e6; }
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Header với Đồng hồ */
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            margin: 0; 
+            background: #fff; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            /* Ngăn chặn rung màn hình trên iPhone */
+            position: fixed;
+            width: 100%;
+        }
+        
         header { 
-            padding: 10px 15px; 
+            padding: 8px 12px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             border-bottom: 1px solid #ddd; 
             background: #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 10;
+            flex-shrink: 0; /* Không cho header bị co lại */
         }
-        .info-area { display: flex; flex-direction: column; }
-        #monthLabel { font-weight: bold; font-size: 1.1rem; color: #3c4043; }
-        #digitalClock { font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; color: #1a73e8; font-weight: bold; margin-top: 2px; }
-
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; background: #dadce0; gap: 1px; }
-        .weekday { background: #f8f9fa; text-align: center; font-size: 0.75rem; padding: 10px 0; font-weight: bold; color: #70757a; }
-        .day { background: #fff; padding: 4px; min-height: 90px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-        .day-num { font-size: 0.85rem; color: #70757a; margin-bottom: 2px; }
-        .today .day-num { background: #1a73e8; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         
-        .conflict { background-color: var(--conflict-bg) !important; box-shadow: inset 0 0 0 2px var(--red); }
-        .note-tag { font-size: 0.7rem; color: #fff; padding: 2px 4px; border-radius: 4px; margin-bottom: 2px; text-align: center; font-weight: 500; cursor: pointer; }
+        .info-area { display: flex; flex-direction: column; }
+        #monthLabel { font-weight: bold; font-size: 1rem; color: #3c4043; }
+        #digitalClock { font-family: monospace; font-size: 0.85rem; color: #1a73e8; font-weight: bold; }
+
+        /* Vùng chứa lịch có thể cuộn */
+        .calendar-container {
+            flex: 1;
+            overflow-y: auto; /* Cho phép cuộn dọc nếu lịch quá dài */
+            -webkit-overflow-scrolling: touch;
+            background: #dadce0;
+        }
+
+        .calendar-grid { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 1px;
+            background: #dadce0;
+        }
+
+        .weekday { 
+            background: #f8f9fa; 
+            text-align: center; 
+            font-size: 0.65rem; 
+            padding: 6px 0; 
+            font-weight: bold; 
+            color: #70757a;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .day { 
+            background: #fff; 
+            padding: 2px; 
+            min-height: 85px; /* Giảm chiều cao tối thiểu để không bị khuất */
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+        }
+
+        .day-num { font-size: 0.75rem; color: #70757a; margin-bottom: 1px; }
+        .today .day-num { 
+            background: #1a73e8; color: #fff; 
+            width: 18px; height: 18px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        
+        .conflict { background-color: var(--conflict-bg) !important; box-shadow: inset 0 0 0 1px var(--red); }
+
+        .note-tag { 
+            font-size: 0.6rem; /* Thu nhỏ chữ trong thẻ */
+            color: #fff; 
+            padding: 1px 2px; 
+            border-radius: 2px; 
+            margin-bottom: 1px; 
+            text-align: center; 
+            font-weight: 500; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Nếu chữ dài quá sẽ hiện ... */
+        }
+
         .tag-red { background: var(--red); }
         .tag-green { background: var(--green); }
         .tag-blue { background: var(--blue); }
-        .tag-white { background: #fff; color: #333; border: 1px solid #ccc; font-size: 0.65rem; }
+        .tag-white { background: #fff; color: #333; border: 1px solid #ccc; }
 
+        /* Menu chọn nhanh tối ưu Mobile */
         .overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99; }
-        .quick-menu { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 20px; border-radius: 24px 24px 0 0; z-index: 100; max-height: 85vh; overflow-y: auto; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); }
-        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn-quick { border: none; padding: 15px; border-radius: 12px; color: #fff; font-weight: bold; font-size: 0.9rem; cursor: pointer; }
-        .btn-white { background: #fff; color: #333; border: 1px solid #aaa; grid-column: span 2; margin-top: 5px; }
-        .btn-delete-item { background: #ff9800; color: white; grid-column: span 2; margin-top: 5px; display: none; }
-        .btn-xoa-all { background: #e8eaed; color: #3c4043; grid-column: span 2; margin-top: 10px; }
+        .quick-menu { 
+            display: none; position: fixed; bottom: 0; left: 0; right: 0; 
+            background: #fff; padding: 15px; border-radius: 16px 16px 0 0; 
+            z-index: 100; max-height: 80vh; overflow-y: auto; 
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.2); 
+        }
+        .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn-quick { border: none; padding: 12px; border-radius: 10px; color: #fff; font-weight: bold; font-size: 0.85rem; }
+        .btn-white { background: #fff; color: #333; border: 1px solid #aaa; grid-column: span 2; }
+        .btn-delete-item { background: #ff9800; color: white; grid-column: span 2; }
+        .btn-xoa-all { background: #e8eaed; color: #3c4043; grid-column: span 2; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -51,17 +121,19 @@
         <div id="monthLabel">Tháng 1, 2026</div>
         <div id="digitalClock">00:00:00</div>
     </div>
-    <div style="display:flex; gap:5px;">
-        <button id="prevMonth" style="border:none; background:none; font-size:1.8rem; color:#5f6368;">‹</button>
-        <button id="nextMonth" style="border:none; background:none; font-size:1.8rem; color:#5f6368;">›</button>
+    <div style="display:flex; gap:2px;">
+        <button id="prevMonth" style="border:none; background:none; font-size:1.5rem; color:#1a73e8; padding:5px 10px;">‹</button>
+        <button id="nextMonth" style="border:none; background:none; font-size:1.5rem; color:#1a73e8; padding:5px 10px;">›</button>
     </div>
 </header>
 
-<div class="calendar-grid" id="grid"></div>
+<div class="calendar-container">
+    <div class="calendar-grid" id="grid"></div>
+</div>
 
 <div class="overlay" id="overlay"></div>
 <div class="quick-menu" id="quickMenu">
-    <div id="targetDate" style="margin-bottom:15px; font-weight:bold; color:#1a73e8; font-size: 1.1rem;"></div>
+    <div id="targetDate" style="margin-bottom:12px; font-weight:bold; color:#1a73e8;"></div>
     <div class="menu-grid">
         <button class="btn-save btn-quick" style="background:var(--red)" data-text="Trực CM" data-color="red">Trực CM</button>
         <button class="btn-save btn-quick" style="background:var(--red)" data-text="Trực HC" data-color="red">Trực HC</button>
@@ -89,13 +161,9 @@
     let selectedKey = "";
     let editingColor = null;
 
-    // HÀM CẬP NHẬT ĐỒNG HỒ
     function updateClock() {
         const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
-        document.getElementById('digitalClock').innerText = `${h}:${m}:${s}`;
+        document.getElementById('digitalClock').innerText = now.toLocaleTimeString('vi-VN');
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -137,7 +205,7 @@
 
     function openEdit(key, color, d, m, y) {
         selectedKey = key; editingColor = color;
-        document.getElementById('targetDate').innerText = `Ngày ${d}/${m}/${y} ${color ? '(Sửa ca)' : ''}`;
+        document.getElementById('targetDate').innerText = `Ngày ${d}/${m}/${y}`;
         document.getElementById('btnDeleteItem').style.display = color ? 'block' : 'none';
         document.getElementById('quickMenu').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
@@ -154,8 +222,7 @@
     
     document.querySelectorAll('.btn-save').forEach(btn => {
         btn.onclick = () => {
-            const text = btn.getAttribute('data-text');
-            const color = btn.getAttribute('data-color');
+            const text = btn.getAttribute('data-text'), color = btn.getAttribute('data-color');
             let data = JSON.parse(localStorage.getItem(selectedKey) || "[]");
             const idx = data.findIndex(i => i.color === color);
             if (idx > -1) data[idx].text = text; else data.push({ text, color });
